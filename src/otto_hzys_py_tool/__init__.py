@@ -25,7 +25,7 @@ async def process_text(text: str):
     if len(text) > 120:
         raise HTTPException(400)
     try:
-        return StreamingResponse(BytesIO(convert_text_to_voice(text)), media_type="audio/mp3")
+        return StreamingResponse(BytesIO(convert_text_to_voice(text)), media_type="audio/wav")
     except Exception as e:
         raise HTTPException(500, detail=str(e))
 
@@ -48,7 +48,6 @@ def get_file_content_chrome(browser: WebDriver, uri):
     if type(result) is int:
         raise Exception(f"Request failed with status {result}")
     browser.__dict__['is_using'] = False
-    logger.debug(result)
     return base64.b64decode(result)
 
 
@@ -63,7 +62,6 @@ def get_available_browser():
 
 def convert_text_to_voice(text: str):
     browser_one = get_available_browser()
-    logger.debug(argv)
     url = [i for i in argv if 'http://' in i]
     browser_one.get(url[0] if url else 'http://localhost:8080/')
     elem = browser_one.find_element(By.XPATH,
@@ -74,5 +72,6 @@ def convert_text_to_voice(text: str):
                                                                      "//button[span[text() = '生成otto鬼叫']]"))).click()
     WebDriverWait(browser_one, 20).until(EC.element_to_be_clickable((By.XPATH,
                                                                      "//button[span[text() = '下载原音频']]"))).click()
-    print(browser_one.execute_script('return window.ottoVoice'))
-    return get_file_content_chrome(browser_one, browser_one.execute_script('return window.ottoVoice'))
+    data = get_file_content_chrome(browser_one, browser_one.execute_script('return window.ottoVoice'))
+    logger.debug(f'{len(data)/(1024*1024): .2f}MB')
+    return data
