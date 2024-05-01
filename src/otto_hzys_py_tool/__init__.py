@@ -16,10 +16,6 @@ from .browser import get_browser, get_multiple_browsers
 
 app = FastAPI()
 
-browser = get_browser(True)
-browser.get(argv[1] if len(argv) == 2 else 'http://localhost:8080/')
-
-
 @app.get("/process_text")
 async def process_text(text: str):
     if len(text) > 120:
