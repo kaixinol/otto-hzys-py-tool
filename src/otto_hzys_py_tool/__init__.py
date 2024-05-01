@@ -3,18 +3,16 @@ import os
 from io import BytesIO
 from sys import argv
 from time import sleep
-from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from .browser import get_browser
+from .browser import get_browser, get_multiple_browsers
 
 app = FastAPI()
 
@@ -32,28 +30,10 @@ async def process_text(text: str):
         raise HTTPException(500, detail=str(e))
 
 
-def get_browser(headless: bool = False) -> WebDriver:
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument('--blink-settings=imagesEnabled=false')
-    chrome_options.add_argument('--disable-remote-fonts')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--window-size=1200x600')
-    if headless:
-        chrome_options.add_argument('--headless')
-    driver = webdriver.Chrome(options=chrome_options)
-    driver.__dict__['is_using'] = False
-    return driver
-
-
-def get_multiple_browsers(count: int, headless: bool = False) -> List[WebDriver]:
-    return [get_browser(headless) for _ in range(count)]
-
-
 browser = get_multiple_browsers(os.cpu_count(), True)
 
 
-def get_file_content_chrome(browser: WebDriver,uri):
+def get_file_content_chrome(browser: WebDriver, uri):
     result = browser.execute_async_script("""
     let uri = arguments[0];
     let callback = arguments[1];
@@ -64,7 +44,7 @@ def get_file_content_chrome(browser: WebDriver,uri):
     xhr.onerror = function(){ callback(xhr.status) };
     xhr.open('GET', uri);
     xhr.send();
-    """,uri)
+    """, uri)
     if type(result) is int:
         raise Exception(f"Request failed with status {result}")
     browser.__dict__['is_using'] = False
@@ -95,4 +75,4 @@ def convert_text_to_voice(text: str):
     WebDriverWait(browser_one, 20).until(EC.element_to_be_clickable((By.XPATH,
                                                                      "//button[span[text() = '下载原音频']]"))).click()
     print(browser_one.execute_script('return window.ottoVoice'))
-    return get_file_content_chrome(browser_one,browser_one.execute_script('return window.ottoVoice'))
+    return get_file_content_chrome(browser_one, browser_one.execute_script('return window.ottoVoice'))
