@@ -1,0 +1,98 @@
+import base64
+import os
+from io import BytesIO
+from sys import argv
+from time import sleep
+from typing import List
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+from loguru import logger
+from selenium import webdriver
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from .browser import get_browser
+
+app = FastAPI()
+
+browser = get_browser(True)
+browser.get(argv[1] if len(argv) == 2 else 'http://localhost:8080/')
+
+
+@app.get("/process_text")
+async def process_text(text: str):
+    if len(text) > 120:
+        raise HTTPException(400)
+    try:
+        return StreamingResponse(BytesIO(convert_text_to_voice(text)), media_type="audio/mp3")
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+def get_browser(headless: bool = False) -> WebDriver:
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument('--blink-settings=imagesEnabled=false')
+    chrome_options.add_argument('--disable-remote-fonts')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--window-size=1200x600')
+    if headless:
+        chrome_options.add_argument('--headless')
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.__dict__['is_using'] = False
+    return driver
+
+
+def get_multiple_browsers(count: int, headless: bool = False) -> List[WebDriver]:
+    return [get_browser(headless) for _ in range(count)]
+
+
+browser = get_multiple_browsers(os.cpu_count(), True)
+
+
+def get_file_content_chrome(browser: WebDriver,uri):
+    result = browser.execute_async_script("""
+    let uri = arguments[0];
+    let callback = arguments[1];
+    let toBase64 = function(buffer){for(var r,n=new Uint8Array(buffer),t=n.length,a=new Uint8Array(4*Math.ceil(t/3)),i=new Uint8Array(64),o=0,c=0;64>c;++c)i[c]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charCodeAt(c);for(c=0;t-t%3>c;c+=3,o+=4)r=n[c]<<16|n[c+1]<<8|n[c+2],a[o]=i[r>>18],a[o+1]=i[r>>12&63],a[o+2]=i[r>>6&63],a[o+3]=i[63&r];return t%3===1?(r=n[t-1],a[o]=i[r>>2],a[o+1]=i[r<<4&63],a[o+2]=61,a[o+3]=61):t%3===2&&(r=(n[t-2]<<8)+n[t-1],a[o]=i[r>>10],a[o+1]=i[r>>4&63],a[o+2]=i[r<<2&63],a[o+3]=61),new TextDecoder("ascii").decode(a)};
+    let xhr = new XMLHttpRequest();
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = function(){ callback(toBase64(xhr.response)) };
+    xhr.onerror = function(){ callback(xhr.status) };
+    xhr.open('GET', uri);
+    xhr.send();
+    """,uri)
+    if type(result) is int:
+        raise Exception(f"Request failed with status {result}")
+    browser.__dict__['is_using'] = False
+    logger.debug(result)
+    return base64.b64decode(result)
+
+
+def get_available_browser():
+    while all([i.__dict__['is_using'] for i in browser]):
+        sleep(1)
+    for i in browser:
+        if not i.__dict__['is_using']:
+            i.__dict__['is_using'] = True
+            return i
+
+
+def convert_text_to_voice(text: str):
+    browser_one = get_available_browser()
+    logger.debug(argv)
+    url = [i for i in argv if 'http://' in i]
+    browser_one.get(url[0] if url else 'http://localhost:8080/')
+    elem = browser_one.find_element(By.XPATH,
+                                    "//textarea[contains(@class, 'el-textarea__inner')]")
+    elem.clear()
+    elem.send_keys(text)
+    WebDriverWait(browser_one, 20).until(EC.element_to_be_clickable((By.XPATH,
+                                                                     "//button[span[text() = '生成otto鬼叫']]"))).click()
+    WebDriverWait(browser_one, 20).until(EC.element_to_be_clickable((By.XPATH,
+                                                                     "//button[span[text() = '下载原音频']]"))).click()
+    print(browser_one.execute_script('return window.ottoVoice'))
+    return get_file_content_chrome(browser_one,browser_one.execute_script('return window.ottoVoice'))
