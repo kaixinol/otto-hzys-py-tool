@@ -1,13 +1,15 @@
 import asyncio
 import base64
 import os
+import random
+import psutil
 from io import BytesIO
 from sys import argv
 from time import sleep
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from loguru import logger
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
@@ -27,6 +29,17 @@ async def process_text(text: str):
         return StreamingResponse(BytesIO(await asyncio.to_thread(convert_text_to_voice, text)), media_type="audio/wav")
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+
+
+@app.get("/get_usage")
+async def process_text():
+    browser_pid = [_.service.process.pid for _ in global_browser]
+    browser_process = [psutil.Process(_) for _ in browser_pid]
+    memory_info = [_.memory_info() for _ in browser_process]
+    total_usage: int = 0
+    for i in memory_info:
+        total_usage += i.rss
+    return PlainTextResponse(f'''Chrome ({len(global_browser)}): {total_usage/(pow(1024,3)): .2f}GB\nMain Process:{psutil.Process(os.getpid()).memory_info().rss/pow(1024,3): .2f}GB''')
 
 
 global_browser = get_multiple_browsers(os.cpu_count(), True)
@@ -52,8 +65,7 @@ def get_file_content_chrome(browser_: WebDriver, uri):
 
 def get_available_browser():
     while all([i.__dict__['is_using'] for i in global_browser]):
-        sleep(1)
-    logger.debug([i.__dict__['is_using'] for i in global_browser])
+        sleep(random.randint(100, 300) / 1000)
     for i in global_browser:
         if not i.__dict__['is_using']:
             i.__dict__['is_using'] = True
@@ -72,7 +84,6 @@ def convert_text_to_voice(text: str):
                                                                      "//button[span[text() = '生成otto鬼叫']]"))).click()
     WebDriverWait(browser_one, 20).until(EC.element_to_be_clickable((By.XPATH,
                                                                      "//button[span[text() = '下载原音频']]"))).click()
-    browser_one.__dict__['is_using'] = False
     data = get_file_content_chrome(browser_one, browser_one.execute_script('return window.ottoVoice'))
     logger.debug(f'{len(data) / (1024 * 1024): .2f}MB')
     return data

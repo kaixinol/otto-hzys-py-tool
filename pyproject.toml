@@ -11,6 +11,7 @@ dependencies = [
     "uvicorn>=0.29.0",
     "requests>=2.31.0",
     "loguru>=0.7.2",
+    "psutil>=5.9.8",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
