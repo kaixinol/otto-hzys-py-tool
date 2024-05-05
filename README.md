@@ -19,4 +19,4 @@
 ## 运行
 `python3 -m otto_hzys_py_tool`
 ## 使用方式
-见 **/otto-hzys-py-tool/tests/__main__.py**
+见 **/otto-hzys-py-tool/tests/\_\_main\_\_.py**
