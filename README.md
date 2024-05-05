@@ -4,7 +4,7 @@
 ## 如何部署
 ### 安装服务核心并PATCH
 1. https://github.com/HanaYabuki/otto-hzys
-4.  修改`otto-hzys/src/components/OttoHzys.vue`的`downloadSound`函数
+2. 修改`otto-hzys/src/components/OttoHzys.vue`的`downloadSound`函数
     ```diff
     -//crunker.download(audioSrc.blob, audioSrc.name);
     +window.ottoVoice=audioSrc.value;
@@ -17,6 +17,6 @@
 
 `pdm venv activate`
 ## 运行
-`python3 -m uvicorn otto_hzys_py_tool:app --port 8080`
+`python3 -m otto_hzys_py_tool`
 ## 使用方式
-见 **/otto-hzys-py-tool/tests/__init__.py**
+见 **/otto-hzys-py-tool/tests/__main__.py**

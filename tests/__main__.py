@@ -9,4 +9,4 @@ with ThreadPoolExecutor() as executor:
     for _ in range(60):
         future.append(executor.submit(get, url=url, params={'text': '啊啊啊' * random.randint(5, 20)}))
     executor.shutdown()
-get('http://localhost:8000/get_usage')
+print(get('http://localhost:8000/get_usage').text)
