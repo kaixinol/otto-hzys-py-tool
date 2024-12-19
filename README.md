@@ -1,4 +1,5 @@
 # otto-hzys-py-tool
+## selenium 版已经废弃
 ## 实现方式
 借用[电棍otto语音活字印刷生成](https://github.com/HanaYabuki/otto-hzys)的纯前端，编写的API服务，支持高并发（由于使用无头浏览器，对cpu要求较高）
 ## 如何部署
