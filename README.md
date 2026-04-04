@@ -1,3 +1,6 @@
+不推荐使用这个。
+
+请使用 https://github.com/kaixinol/otto-hzys-api-backend
 # otto-hzys-py-tool
 ## selenium 版已经废弃
 ## 实现方式
